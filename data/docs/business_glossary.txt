@@ -1,0 +1,53 @@
+BUSINESS GLOSSARY
+=================
+
+Revenue / Sales / Total Sales:
+  All three terms refer to the SUM of the total column in the orders table.
+  SQL: SUM(orders.total)
+  Do not confuse with product price — total already accounts for quantity.
+
+Return Rate:
+  The percentage of orders that were returned.
+  Calculated as: COUNT(returns.id) / COUNT(orders.id) * 100
+  Usually grouped by product category or region.
+
+Low Stock:
+  Products where the stock column in the products table is less than 10.
+  SQL condition: WHERE products.stock < 10
+
+Top Customers:
+  Customers ranked by their total spending across all orders.
+  SQL: GROUP BY customers.id ORDER BY SUM(orders.total) DESC
+
+Weekend Orders:
+  Orders placed on Saturday or Sunday.
+  SQLite: strftime('%w', order_date) IN ('0', '6')
+  where '0' = Sunday, '6' = Saturday
+
+Weekday Orders:
+  Orders placed Monday through Friday.
+  SQLite: strftime('%w', order_date) NOT IN ('0', '6')
+
+Last Year:
+  Orders where order_date falls within the previous calendar year.
+  SQLite: strftime('%Y', order_date) = strftime('%Y', 'now', '-1 year')
+
+This Quarter / Current Quarter:
+  Orders in the current 3-month period based on today's date.
+  SQLite: strftime('%Y-%m', order_date) between quarter start and end months.
+
+Monthly Revenue Trend:
+  Revenue grouped by month. Use strftime('%Y-%m', order_date) to group.
+
+Average Order Value (AOV):
+  AVG(orders.total) — the mean transaction amount.
+
+Customer Segment:
+  The segment column classifies customers into Consumer, Corporate, or Home Office.
+  Corporate customers typically have higher AOV than Consumer.
+
+Product Category Performance:
+  Compare SUM(orders.total) grouped by products.category with a JOIN to orders.
+
+Stock Level Analysis:
+  Query the products table directly. No join needed unless combining with sales data.
