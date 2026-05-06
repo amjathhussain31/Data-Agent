@@ -1,12 +1,4 @@
 # tools/chart_builder.py
-"""
-Auto-selects and builds a Plotly chart from a DataFrame.
-Chart type is chosen based on data shape — no manual selection needed.
-"""
-import os
-import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
 import json
 import pandas as pd
 import plotly.express as px
@@ -14,30 +6,61 @@ import plotly.graph_objects as go
 from plotly.graph_objs import Figure
 
 
-def detect_chart_type(df: pd.DataFrame) -> str:
-    """
-    Automatically picks the best chart type based on DataFrame shape.
+def _coerce_numeric(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        try:
+            df[col] = pd.to_numeric(df[col])
+        except (ValueError, TypeError):
+            pass
+    return df
 
-    Rules:
-      time column present          → line
-      2 cols: categorical+numeric  → bar
-      1 numeric col, many rows     → histogram
-      3+ numeric cols              → scatter
-      2 cols, ≤6 rows              → pie
-      fallback                     → table
+
+def _combine_year_month(df: pd.DataFrame) -> pd.DataFrame:
     """
+    When the agent queries EXTRACT(YEAR...) EXTRACT(MONTH...),
+    the result has separate 'year' and 'month' numeric columns.
+    Combine them into a single 'order_month' string so the
+    time-series detector fires correctly.
+    """
+    cols_lower = [c.lower() for c in df.columns]
+    has_year  = "year"  in cols_lower
+    has_month = "month" in cols_lower
+
+    if has_year and has_month:
+        year_col  = df.columns[cols_lower.index("year")]
+        month_col = df.columns[cols_lower.index("month")]
+        df = df.copy()
+        df["order_month"] = (
+            df[year_col].astype(int).astype(str) + "-" +
+            df[month_col].astype(int).astype(str).str.zfill(2)
+        )
+        df = df.drop(columns=[year_col, month_col])
+        # Move order_month to front so it becomes the x-axis
+        other_cols = [c for c in df.columns if c != "order_month"]
+        df = df[["order_month"] + other_cols]
+    return df
+
+
+def detect_chart_type(df: pd.DataFrame) -> str:
     if df.empty or len(df.columns) < 2:
         return "table"
 
-    cols        = list(df.columns)
-    num_cols    = df.select_dtypes(include="number").columns.tolist()
-    str_cols    = df.select_dtypes(include="object").columns.tolist()
-    n_rows      = len(df)
+    if len(df) == 1:
+        return "table"
 
-    # Time series detection
-    time_keywords = ["date", "month", "year", "week", "quarter", "period", "time"]
+    df       = _coerce_numeric(df.copy())
+    cols     = list(df.columns)
+    num_cols = df.select_dtypes(include="number").columns.tolist()
+    str_cols = df.select_dtypes(include="object").columns.tolist()
+    n_rows   = len(df)
+
+    # Time series — check all column names for time keywords
+    time_kw = [
+        "date", "month", "year", "week", "quarter",
+        "period", "time", "order_month", "order_date"
+    ]
     for col in cols:
-        if any(kw in col.lower() for kw in time_keywords):
+        if any(kw in col.lower() for kw in time_kw):
             if num_cols:
                 return "line"
 
@@ -45,17 +68,9 @@ def detect_chart_type(df: pd.DataFrame) -> str:
     if len(str_cols) >= 1 and len(num_cols) >= 1 and n_rows > 2:
         return "bar"
 
-    # Pie — only for very few categories (2 or fewer)
+    # Pie — 2 or fewer rows
     if len(str_cols) == 1 and len(num_cols) == 1 and n_rows <= 2:
         return "pie"
-
-    # Multiple numeric — scatter
-    if len(num_cols) >= 3:
-        return "scatter"
-
-    # Single numeric — histogram
-    if len(num_cols) == 1:
-        return "histogram"
 
     return "table"
 
@@ -63,14 +78,15 @@ def detect_chart_type(df: pd.DataFrame) -> str:
 def build_chart(df: pd.DataFrame,
                 title: str = "Query Results",
                 chart_type: str = None) -> Figure:
-    """
-    Builds and returns a Plotly Figure.
-    If chart_type is None, auto-detects from DataFrame.
-    """
+
     if df is None or df.empty:
         fig = go.Figure()
         fig.update_layout(title="No data to display")
         return fig
+
+    
+    df = _combine_year_month(df.copy())          # combines year+month before anything else
+    df = _coerce_numeric(df)
 
     cols     = list(df.columns)
     num_cols = df.select_dtypes(include="number").columns.tolist()
@@ -83,38 +99,50 @@ def build_chart(df: pd.DataFrame,
         if chart_type == "bar":
             x_col = str_cols[0] if str_cols else cols[0]
             y_col = num_cols[0] if num_cols else cols[1]
-            fig = px.bar(df, x=x_col, y=y_col, title=title,
-                         color=x_col, color_discrete_sequence=px.colors.qualitative.Set2)
+            fig   = px.bar(
+                df, x=x_col, y=y_col, title=title,
+                color=x_col,
+                color_discrete_sequence=px.colors.qualitative.Set2
+            )
 
         elif chart_type == "line":
-            x_col = cols[0]
+            x_col = str_cols[0] if str_cols else cols[0]
             y_col = num_cols[0] if num_cols else cols[1]
-            fig = px.line(df, x=x_col, y=y_col, title=title, markers=True)
+            fig   = px.line(
+                df, x=x_col, y=y_col,
+                title=title,
+                markers=True
+            )
+            fig.update_xaxes(tickangle=45)
 
         elif chart_type == "pie":
             name_col  = str_cols[0] if str_cols else cols[0]
             value_col = num_cols[0] if num_cols else cols[1]
-            fig = px.pie(df, names=name_col, values=value_col, title=title)
-
-        elif chart_type == "scatter":
-            fig = px.scatter(df, x=num_cols[0], y=num_cols[1],
-                             title=title, color=str_cols[0] if str_cols else None)
-
-        elif chart_type == "histogram":
-            fig = px.histogram(df, x=num_cols[0], title=title)
+            fig       = px.pie(df, names=name_col, values=value_col, title=title)
 
         else:
-            # Table fallback
             fig = go.Figure(data=[go.Table(
-                header=dict(values=cols, fill_color="#4A90D9",
-                            font=dict(color="white"), align="left"),
-                cells=dict(values=[df[c] for c in cols],
-                           fill_color="lavender", align="left")
+                header=dict(
+                    values=cols,
+                    fill_color="#1f6feb",
+                    font=dict(color="white"),
+                    align="left"
+                ),
+                cells=dict(
+                    values=[df[c].tolist() for c in cols],
+                    fill_color="#161b22",
+                    font=dict(color="#e6edf3"),
+                    align="left"
+                )
             )])
             fig.update_layout(title=title)
 
         fig.update_layout(
-            margin=dict(l=20, r=20, t=40, b=20),
+            paper_bgcolor="#161b22",
+            plot_bgcolor="#0d1117",
+            font_color="#e6edf3",
+            title_font_color="#e6edf3",
+            margin=dict(l=20, r=20, t=40, b=60),
             height=400
         )
         return fig
@@ -126,13 +154,12 @@ def build_chart(df: pd.DataFrame,
 
 
 def build_chart_from_string(data_json: str, title: str = "Results") -> str:
-    """
-    LangChain tool wrapper — accepts JSON string, returns status string.
-    The actual Figure is stored in session state in the Streamlit app.
-    """
+    """LangChain tool wrapper — returns status string to agent."""
     try:
         data  = json.loads(data_json)
         df    = pd.DataFrame(data)
+        df    = _combine_year_month(df.copy())
+        df    = _coerce_numeric(df)
         ctype = detect_chart_type(df)
         return f"Chart ready: type={ctype}, rows={len(df)}, cols={list(df.columns)}"
     except Exception as e:

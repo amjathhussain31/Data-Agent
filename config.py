@@ -1,35 +1,41 @@
 # config.py
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
 
-# API Keys
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY", "")
-LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY", "")
+# AWS Core
+AWS_REGION              = os.getenv("AWS_REGION", "us-east-1")
+AWS_ACCESS_KEY_ID       = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY   = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_SESSION_TOKEN       = os.getenv("AWS_SESSION_TOKEN", "")
 
-# Database
-SQLITE_DB_PATH = "data/sample.db"
-SQLITE_DB_URL = f"sqlite:///{SQLITE_DB_PATH}"
+# Bedrock
+BEDROCK_SQL_MODEL       = os.getenv("BEDROCK_SQL_MODEL",
+                            "anthropic.claude-3-haiku-20240307-v1:0")
+BEDROCK_SUMMARY_MODEL   = os.getenv("BEDROCK_SUMMARY_MODEL",
+                            "anthropic.claude-3-haiku-20240307-v1:0")
 
-# Models
-GEMINI_MODEL = "gemini-2.5-flash-lite"   # free tier, fast
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-GROQ_MODEL   = "llama-3.3-70b-versatile"
-USE_GROQ     = True    # set False to fall back to Gemini
+# EMR Hive
+EMR_HIVE_HOST           = os.getenv("EMR_HIVE_HOST", "localhost")
+EMR_HIVE_PORT           = int(os.getenv("EMR_HIVE_PORT", "10000"))
+EMR_HIVE_DATABASE       = os.getenv("EMR_HIVE_DATABASE", "default")
+
+# DynamoDB
+DYNAMODB_MEMORY_TABLE   = os.getenv("DYNAMODB_MEMORY_TABLE", "datamind_memory")
+
+# MCP + Gateway
+MCP_SERVER_URL          = os.getenv("MCP_SERVER_URL", "http://localhost:8000")
+GATEWAY_URL             = os.getenv("GATEWAY_URL", "http://localhost:8001")
+GATEWAY_PORT            = int(os.getenv("GATEWAY_PORT", "8001"))
+
+# CloudWatch
+CLOUDWATCH_NAMESPACE    = os.getenv("CLOUDWATCH_NAMESPACE", "DataMindAgent")
 
 # RAG
-FAISS_INDEX_PATH = "data/faiss_index"
-CHUNK_SIZE = 512
-CHUNK_OVERLAP = 64
-TOP_K = 4
+FAISS_INDEX_PATH        = os.getenv("FAISS_INDEX_PATH", "data/faiss_index")
+CHUNK_SIZE              = 512
+CHUNK_OVERLAP           = 64
+TOP_K                   = 4
 
-# Agent
-MAX_RETRIES = 2
-MAX_ITERATIONS = 6
-MEMORY_WINDOW_K = 6
-
-# Full path to dbhub on Windows — avoids PATH lookup failure in subprocess
-DBHUB_CMD = r"C:\Users\amjat\AppData\Roaming\npm\dbhub.cmd"
+# Embed model (no cost, runs locally)
+EMBED_MODEL             = "sentence-transformers/all-MiniLM-L6-v2"

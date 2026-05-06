@@ -1,10 +1,38 @@
-google-generativeai==0.8.3
-langchain==0.3.7
-langchain-community==0.3.7
-langchain-google-genai==1.0.10
-sqlalchemy==2.0.36
-pandas==2.2.3
-python-dotenv==1.0.1
-mcp==1.2.0
-faiss-cpu==1.9.0.post1
-sentence-transformers==3.1.1
+# DataMind Agent — requirements
+
+# MCP Server
+mcp>=1.0.0
+boto3>=1.34.0
+
+# Hive / EMR
+pyhive>=0.7.0
+thrift>=0.16.0
+thrift-sasl>=0.4.3
+sasl>=0.3.1
+
+# Data & ML
+pandas>=2.2.0
+faiss-cpu>=1.9.0
+sentence-transformers>=3.1.0
+duckdb>=1.0.0
+
+# LangChain + LangGraph (Supervisor Agent)
+langchain>=0.3.7
+langchain-groq>=0.2.3
+langchain-community>=0.3.7
+langchain-aws>=0.2.0
+langgraph>=0.2.0
+
+# Visualization
+plotly>=5.24.0
+
+# API & Web
+fastapi>=0.115.0
+uvicorn>=0.31.0
+streamlit>=1.39.0
+httpx>=0.27.0
+requests>=2.32.0
+
+# Utilities
+python-dotenv>=1.0.1
+pydantic>=2.10.0
