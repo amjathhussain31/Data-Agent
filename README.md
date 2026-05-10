@@ -316,4 +316,4 @@ MIT
 
 ## Authors
 
-Built for Cognizant Hackathon 2024 by Team Zyphron.
+Built for Cognizant Technoverse Hackathon 2026 by Team Zyphron.
